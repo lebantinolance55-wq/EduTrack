@@ -1,6 +1,6 @@
 FROM php:8.4-apache
 
-# Install required PHP extensions
+# Install required packages and PHP extensions
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libsqlite3-dev \
@@ -15,13 +15,13 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-# Copy project
+# Copy project files
 COPY . .
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Configure Apache to use Laravel's public folder
+# Configure Apache to use Laravel public folder
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
 RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
@@ -31,14 +31,10 @@ RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
 # Create SQLite database
 RUN touch database/database.sqlite
 
-# Set Laravel permissions
+# Set permissions
 RUN chown -R www-data:www-data storage bootstrap/cache database
 
-# Laravel production cache
-RUN php artisan config:clear
-RUN php artisan route:clear
-RUN php artisan view:clear
+# Start Laravel with migrations, then Apache
+CMD php artisan migrate --force && apache2-foreground
 
 EXPOSE 80
-
-CMD ["apache2-foreground"]
